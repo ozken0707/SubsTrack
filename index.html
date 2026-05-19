@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="サブスクリプションを一元管理。月額・年額の費用を可視化し、更新日をカレンダーで確認できるサブスク管理アプリ。" />
+  <title>SubsTrack — サブスク管理</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ========== サイドバー ========== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <span class="logo-icon">◈</span>
+      <span class="logo-text">SubsTrack</span>
+    </div>
+
+    <nav class="sidebar-nav">
+      <button class="nav-item active" id="nav-dashboard" data-page="dashboard">
+        <span class="nav-icon">▦</span>
+        <span>ダッシュボード</span>
+      </button>
+      <button class="nav-item" id="nav-list" data-page="list">
+        <span class="nav-icon">≡</span>
+        <span>サブスク一覧</span>
+      </button>
+      <button class="nav-item" id="nav-calendar" data-page="calendar">
+        <span class="nav-icon">◫</span>
+        <span>カレンダー</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button class="btn-notify" id="btn-notify" title="通知設定">
+        <span id="notify-label">通知を有効にする</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ========== メインコンテンツ ========== -->
+  <div class="main-wrapper">
+
+    <!-- ヘッダー -->
+    <header class="topbar">
+      <button class="hamburger" id="hamburger" aria-label="メニュー">☰</button>
+      <h1 class="page-title" id="page-title">ダッシュボード</h1>
+      <div class="topbar-actions">
+        <button class="btn-export" id="btn-export" title="CSVエクスポート">
+          ↓ CSV
+        </button>
+        <button class="btn-add" id="btn-add">
+          <span>＋</span> 追加
+        </button>
+      </div>
+    </header>
+
+    <!-- ページコンテンツ -->
+    <main class="main-content">
+
+      <!-- ===== ダッシュボードページ ===== -->
+      <section class="page" id="page-dashboard">
+        <!-- サマリーカード -->
+        <div class="summary-cards">
+          <div class="card card-monthly">
+            <div class="card-label">月額合計</div>
+            <div class="card-value" id="total-monthly">¥0</div>
+            <div class="card-sub" id="count-active">0件</div>
+          </div>
+          <div class="card card-yearly">
+            <div class="card-label">年額換算</div>
+            <div class="card-value" id="total-yearly">¥0</div>
+            <div class="card-sub">年間支出</div>
+          </div>
+          <div class="card card-alert">
+            <div class="card-label">更新が迫っています</div>
+            <div class="card-value" id="count-alert">0件</div>
+            <div class="card-sub">7日以内</div>
+          </div>
+        </div>
+
+        <!-- グラフ + 直近の更新 -->
+        <div class="dashboard-grid">
+          <div class="glass-panel chart-panel">
+            <h2 class="panel-title">カテゴリ別内訳</h2>
+            <div class="chart-wrap">
+              <canvas id="category-chart"></canvas>
+              <div class="chart-center-label" id="chart-center">
+                <span id="chart-center-val">¥0</span>
+                <small>/月</small>
+              </div>
+            </div>
+            <div class="chart-legend" id="chart-legend"></div>
+          </div>
+
+          <div class="glass-panel upcoming-panel">
+            <h2 class="panel-title">直近の更新</h2>
+            <ul class="upcoming-list" id="upcoming-list">
+              <li class="empty-state">更新予定のサービスはありません</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== 一覧ページ ===== -->
+      <section class="page hidden" id="page-list">
+        <div class="list-toolbar">
+          <input type="text" class="search-input" id="search-input" placeholder="サービス名で検索…" />
+          <select class="filter-select" id="filter-category">
+            <option value="">すべてのカテゴリ</option>
+          </select>
+          <select class="filter-select" id="filter-cycle">
+            <option value="">すべての周期</option>
+            <option value="monthly">月払い</option>
+            <option value="yearly">年払い</option>
+          </select>
+        </div>
+        <div class="subs-grid" id="subs-grid">
+          <!-- カードをJSで生成 -->
+        </div>
+        <div class="empty-container hidden" id="list-empty">
+          <div class="empty-icon">◈</div>
+          <p>サブスクがまだ登録されていません</p>
+          <button class="btn-add-empty" id="btn-add-empty">最初のサブスクを追加する</button>
+        </div>
+      </section>
+
+      <!-- ===== カレンダーページ ===== -->
+      <section class="page hidden" id="page-calendar">
+        <div class="calendar-nav">
+          <button class="cal-nav-btn" id="cal-prev">‹</button>
+          <span class="cal-month-label" id="cal-month-label"></span>
+          <button class="cal-nav-btn" id="cal-next">›</button>
+        </div>
+        <div class="calendar-grid" id="calendar-grid"></div>
+        <div class="glass-panel cal-detail-panel" id="cal-detail-panel">
+          <h3 class="panel-title" id="cal-detail-title">日付を選択してください</h3>
+          <ul class="cal-detail-list" id="cal-detail-list"></ul>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ========== 追加・編集モーダル ========== -->
+  <div class="modal-overlay hidden" id="modal-overlay">
+    <div class="modal glass-panel" id="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-header">
+        <h2 class="modal-title" id="modal-title">サブスクを追加</h2>
+        <button class="modal-close" id="modal-close" aria-label="閉じる">✕</button>
+      </div>
+
+      <form id="sub-form" novalidate>
+        <input type="hidden" id="form-id" />
+
+        <div class="form-group">
+          <label class="form-label" for="form-name">サービス名 <span class="required">*</span></label>
+          <input type="text" class="form-input" id="form-name" placeholder="例: Netflix" required maxlength="50" />
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="form-amount">金額 (円) <span class="required">*</span></label>
+            <input type="number" class="form-input" id="form-amount" placeholder="例: 1490" min="1" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="form-cycle">課金周期</label>
+            <select class="form-input" id="form-cycle">
+              <option value="monthly">月払い</option>
+              <option value="yearly">年払い</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="form-category">カテゴリ</label>
+            <select class="form-input" id="form-category">
+              <option value="エンタメ">エンタメ</option>
+              <option value="音楽">音楽</option>
+              <option value="仕事">仕事</option>
+              <option value="クラウド">クラウド</option>
+              <option value="健康">健康</option>
+              <option value="ゲーム">ゲーム</option>
+              <option value="学習">学習</option>
+              <option value="その他">その他</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="form-next-date">次回更新日 <span class="required">*</span></label>
+            <input type="date" class="form-input" id="form-next-date" required />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="form-memo">メモ</label>
+          <textarea class="form-input form-textarea" id="form-memo" placeholder="プランや備考など…" maxlength="200" rows="2"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label color-label">アイコンカラー</label>
+          <div class="color-picker" id="color-picker">
+            <button type="button" class="color-swatch selected" data-color="#7c3aed" style="background:#7c3aed;" aria-label="パープル"></button>
+            <button type="button" class="color-swatch" data-color="#2563eb" style="background:#2563eb;" aria-label="ブルー"></button>
+            <button type="button" class="color-swatch" data-color="#0891b2" style="background:#0891b2;" aria-label="シアン"></button>
+            <button type="button" class="color-swatch" data-color="#059669" style="background:#059669;" aria-label="グリーン"></button>
+            <button type="button" class="color-swatch" data-color="#d97706" style="background:#d97706;" aria-label="オレンジ"></button>
+            <button type="button" class="color-swatch" data-color="#dc2626" style="background:#dc2626;" aria-label="レッド"></button>
+            <button type="button" class="color-swatch" data-color="#db2777" style="background:#db2777;" aria-label="ピンク"></button>
+            <button type="button" class="color-swatch" data-color="#64748b" style="background:#64748b;" aria-label="グレー"></button>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn-cancel" id="btn-cancel">キャンセル</button>
+          <button type="submit" class="btn-submit" id="btn-submit">保存する</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========== 削除確認モーダル ========== -->
+  <div class="modal-overlay hidden" id="delete-overlay">
+    <div class="modal modal-sm glass-panel" role="dialog" aria-modal="true">
+      <div class="modal-header">
+        <h2 class="modal-title">削除の確認</h2>
+        <button class="modal-close" id="delete-close">✕</button>
+      </div>
+      <p class="delete-msg" id="delete-msg">このサブスクを削除しますか？</p>
+      <div class="form-actions">
+        <button class="btn-cancel" id="delete-cancel">キャンセル</button>
+        <button class="btn-delete" id="delete-confirm">削除する</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== トースト通知 ========== -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
