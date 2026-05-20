@@ -63,11 +63,11 @@ ul { list-style: none; }
   padding: 0 20px 28px;
   border-bottom: 1px solid var(--border);
 }
-.logo-icon {
-  font-size: 22px;
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+.logo-img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  flex-shrink: 0;
 }
 .logo-text {
   font-size: 17px;
