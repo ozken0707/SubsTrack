@@ -175,6 +175,7 @@ setInterval(() => {
   if (today !== _lastDate) {
     _lastDate = today;
     autoAdvanceDates();
+    checkUpcomingNotifications(); // 日またぎ時に通知チェック
     render();
   }
 }, 60_000);
@@ -250,15 +251,40 @@ function updateNotifyBtn() {
 }
 function checkUpcomingNotifications() {
   if (!notifGranted) return;
+
+  const today = new Date().toISOString().split('T')[0];
+  const NOTIF_LOG_KEY = 'substrack_notif_log';
+
+  // 通知ログ読み込み（形式: { "subId_YYYY-MM-DD": true, ... }）
+  let notifLog = {};
+  try { notifLog = JSON.parse(localStorage.getItem(NOTIF_LOG_KEY) || '{}'); } catch(e) {}
+
+  // 30日以上前のログを掃除
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 30);
+  Object.keys(notifLog).forEach(k => {
+    const datePart = k.split('_').pop(); // "YYYY-MM-DD"
+    if (new Date(datePart) < cutoff) delete notifLog[k];
+  });
+
+  let fired = false;
   state.subs.forEach(sub => {
     const days = daysUntil(sub.nextDate);
-    if (days === 0 || days === 7) {
-      const msg = days === 0
-        ? `${sub.name} の更新日は今日です！ (${fmt(sub.amount)})`
-        : `${sub.name} の更新まであと7日です (${fmt(sub.amount)})`;
-      new Notification('SubsTrack 更新アラート', { body: msg, icon: '◈' });
-    }
+    if (days < 0 || days > 7) return; // 7日以内のみ対象
+
+    // 今日すでに通知済みならスキップ
+    const logKey = `${sub.id}_${today}`;
+    if (notifLog[logKey]) return;
+
+    const msg = days === 0
+      ? `${sub.name} の更新日は今日です！ (${fmt(sub.amount)})`
+      : `${sub.name} の更新まであと${days}日です (${fmt(sub.amount)})`;
+
+    new Notification('SubsTrack 更新アラート', { body: msg, icon: 'icon.png' });
+    notifLog[logKey] = true;
+    fired = true;
   });
+
+  if (fired) localStorage.setItem(NOTIF_LOG_KEY, JSON.stringify(notifLog));
 }
 
 // ===================== Chart =====================
